@@ -3,7 +3,7 @@ import {
   calculateContentBounds,
   envMaps,
   parseXYZ
-} from "./chunk-FLV626LB.js";
+} from "./chunk-S7GAP2SA.js";
 import {
   Animation,
   AnimationGraphics,
@@ -34,6 +34,7 @@ import {
   ModelGraphics,
   NetworkedDOMWebsocketStatus,
   NetworkedDOMWebsocketStatusToString,
+  OverlayGraphics,
   PlaneGraphics,
   PositionProbeGraphics,
   PromptGraphics,
@@ -64,7 +65,7 @@ import {
   parseColorAttribute,
   radToDeg,
   setDebugGlobals
-} from "./chunk-EPLE3BMH.js";
+} from "./chunk-YL4BJBHM.js";
 
 // ../../node_modules/three/build/three.core.js
 var REVISION = "178";
@@ -40474,6 +40475,24 @@ _ThreeJSModel.DebugBoundingBoxMaterial = new MeshBasicMaterial({
   opacity: 0.3
 });
 var ThreeJSModel = _ThreeJSModel;
+var ThreeJSOverlay = class extends OverlayGraphics {
+  constructor(overlay) {
+    super(overlay);
+    this.overlay = overlay;
+  }
+  disable() {
+  }
+  enable() {
+  }
+  setAnchor() {
+  }
+  setOffsetX() {
+  }
+  setOffsetY() {
+  }
+  dispose() {
+  }
+};
 var _ThreeJSPlane = class _ThreeJSPlane2 extends PlaneGraphics {
   constructor(plane) {
     super(plane);
@@ -41062,36 +41081,40 @@ var ThreeJSClickTrigger = class _ThreeJSClickTrigger {
     if (intersections.length > 0) {
       for (const intersection of intersections) {
         let obj = intersection.object;
-        while (obj) {
+        currentIntersection: while (obj) {
           if (this.isMaterialIgnored(obj)) {
-            break;
+            break currentIntersection;
           }
           const mElement = MElement.getMElementFromObject(obj);
-          if (mElement && TransformableElement.isTransformableElement(mElement) && mElement.isClickable()) {
-            const elementRelative = getRelativePositionAndRotationRelativeToObject(
-              {
-                position: intersection.point,
-                rotation: {
-                  x: 0,
-                  y: 0,
-                  z: 0
-                }
-              },
-              mElement
-            );
-            mElement.dispatchEvent(
-              new CustomEvent("click", {
-                bubbles: true,
-                detail: {
-                  position: {
-                    ...elementRelative.position
-                  }
-                }
-              })
-            );
-            return;
+          if (!mElement) {
+            obj = obj.parent;
+            continue currentIntersection;
           }
-          obj = obj.parent;
+          if (!mElement.isClickable()) {
+            break currentIntersection;
+          }
+          const elementRelative = getRelativePositionAndRotationRelativeToObject(
+            {
+              position: intersection.point,
+              rotation: {
+                x: 0,
+                y: 0,
+                z: 0
+              }
+            },
+            mElement
+          );
+          mElement.dispatchEvent(
+            new CustomEvent("click", {
+              bubbles: true,
+              detail: {
+                position: {
+                  ...elementRelative.position
+                }
+              }
+            })
+          );
+          return;
         }
       }
     }
@@ -41102,7 +41125,7 @@ var ThreeJSClickTrigger = class _ThreeJSClickTrigger {
   isMaterialIgnored(obj) {
     const mesh = obj;
     if (mesh) {
-      if (mesh.material && mesh.material.transparent && mesh.material.opacity < 1 || mesh.material && mesh.material.wireframe || mesh.material && mesh.material.wireframe || mesh.material && mesh.material.wireframe || mesh.material && mesh.material.wireframe || mesh.material && mesh.material.isLineBasicMaterial) {
+      if (mesh.material && mesh.material.wireframe || mesh.material && mesh.material.wireframe || mesh.material && mesh.material.wireframe || mesh.material && mesh.material.wireframe || mesh.material && mesh.material.isLineBasicMaterial) {
         return true;
       }
     }
@@ -41121,6 +41144,7 @@ var ThreeJSGraphicsInterface = {
   MMLInteractionGraphicsInterface: (element) => new ThreeJSInteraction(element),
   MMLLabelGraphicsInterface: (element) => new ThreeJSLabel(element),
   MMLLightGraphicsInterface: (element) => new ThreeJSLight(element),
+  MMLOverlayGraphicsInterface: (element) => new ThreeJSOverlay(element),
   MMLLinkGraphicsInterface: (element) => new ThreeJSLink(element),
   MMLModelGraphicsInterface: (element, updateMeshCallback) => new ThreeJSModel(element, updateMeshCallback),
   MMLPlaneGraphicsInterface: (element) => new ThreeJSPlane(element),
@@ -42673,6 +42697,7 @@ var ThreeJSModeInternal = class {
       fullScreenMMLScene,
       graphicsAdapter
     );
+    fullScreenMMLScene.getLoadingProgressManager().setInitialLoad(true);
     this.loadedState = {
       mmlNetworkSource,
       graphicsAdapter,
@@ -42857,4 +42882,4 @@ three/examples/jsm/libs/fflate.module.js:
   version 0.8.2
   *)
 */
-//# sourceMappingURL=ThreeJSModeInternal-ZRE65KB7.js.map
+//# sourceMappingURL=ThreeJSModeInternal-ZK65NRHP.js.map

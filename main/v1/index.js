@@ -15,7 +15,7 @@ import {
   rendererField,
   setDebugGlobals,
   urlField
-} from "./chunk-EPLE3BMH.js";
+} from "./chunk-YL4BJBHM.js";
 
 // src/ui/setUrlParam.ts
 function setUrlParam(name, value) {
@@ -31,8 +31,8 @@ function setUrlParam(name, value) {
 
 // src/ui/shared-styles.module.css
 var shared_styles_default = {
-  "button": "shared-styles-module__button_Y_AOrq__0200",
-  "header": "shared-styles-module__header_Y_AOrq__0200"
+  "button": "shared-styles-module__button_Y_AOrq__0213",
+  "header": "shared-styles-module__header_Y_AOrq__0213"
 };
 
 // src/ui/UIElement.ts
@@ -46,12 +46,12 @@ var UIElement = class {
 
 // src/ui/UIField.module.css
 var UIField_default = {
-  "label": "UIField-module__label_lh-KDa__0200",
-  "labelFocused": "UIField-module__label-focused_lh-KDa__0200",
-  "selectInput": "UIField-module__select-input_lh-KDa__0200",
-  "submitButton": "UIField-module__submit-button_lh-KDa__0200",
-  "textInput": "UIField-module__text-input_lh-KDa__0200",
-  "uiField": "UIField-module__ui-field_lh-KDa__0200"
+  "label": "UIField-module__label_lh-KDa__0213",
+  "labelFocused": "UIField-module__label-focused_lh-KDa__0213",
+  "selectInput": "UIField-module__select-input_lh-KDa__0213",
+  "submitButton": "UIField-module__submit-button_lh-KDa__0213",
+  "textInput": "UIField-module__text-input_lh-KDa__0213",
+  "uiField": "UIField-module__ui-field_lh-KDa__0213"
 };
 
 // src/ui/UIField.ts
@@ -176,7 +176,7 @@ var UIField = class extends UIElement {
 
 // src/ui/UIGroup.module.css
 var UIGroup_default = {
-  "uiGroup": "UIGroup-module__ui-group_WUqfdq__0200"
+  "uiGroup": "UIGroup-module__ui-group_WUqfdq__0213"
 };
 
 // src/ui/UIGroup.ts
@@ -306,7 +306,7 @@ var PlayCanvasMode = class {
   }
   async init() {
     this.internalMode = await (async () => {
-      const { PlayCanvasModeInternal } = await import("./PlayCanvasModeInternal-VEOVQGCF.js");
+      const { PlayCanvasModeInternal } = await import("./PlayCanvasModeInternal-PWOPL65D.js");
       return new PlayCanvasModeInternal(
         this.windowTarget,
         this.targetForWrappers,
@@ -435,6 +435,7 @@ var TagsMode = class {
       mmlScene: fullScreenMMLScene,
       remoteDocumentWrapper: mmlNetworkSource.remoteDocumentWrapper
     });
+    fullScreenMMLScene.getLoadingProgressManager().setInitialLoad(true);
     this.loadedState = {
       mmlNetworkSource,
       graphicsAdapter,
@@ -479,7 +480,7 @@ var ThreeJSMode = class {
   }
   async init() {
     this.internalMode = await (async () => {
-      const { ThreeJSModeInternal } = await import("./ThreeJSModeInternal-ZRE65KB7.js");
+      const { ThreeJSModeInternal } = await import("./ThreeJSModeInternal-ZK65NRHP.js");
       return new ThreeJSModeInternal(
         this.windowTarget,
         this.targetForWrappers,
@@ -516,16 +517,16 @@ var github_mark_white_default = "./github-mark-white-DC6LPEI2.svg";
 
 // src/ui/HideUISection.module.css
 var HideUISection_default = {
-  "hidden": "HideUISection-module__hidden_ygtI5G__0200",
-  "hideUiSection": "HideUISection-module__hide-ui-section_ygtI5G__0200",
-  "hideUiSectionContents": "HideUISection-module__hide-ui-section-contents_ygtI5G__0200"
+  "hidden": "HideUISection-module__hidden_ygtI5G__0213",
+  "hideUiSection": "HideUISection-module__hide-ui-section_ygtI5G__0213",
+  "hideUiSectionContents": "HideUISection-module__hide-ui-section-contents_ygtI5G__0213"
 };
 
 // src/ui/tooltip.module.css
 var tooltip_default = {
-  "tooltip": "tooltip-module__tooltip_qonKzG__0200",
-  "tooltipInitiator": "tooltip-module__tooltip-initiator_qonKzG__0200",
-  "tooltipItem": "tooltip-module__tooltip-item_qonKzG__0200"
+  "tooltip": "tooltip-module__tooltip_qonKzG__0213",
+  "tooltipInitiator": "tooltip-module__tooltip-initiator_qonKzG__0213",
+  "tooltipItem": "tooltip-module__tooltip-item_qonKzG__0213"
 };
 
 // src/ui/HideUISection.ts
@@ -570,10 +571,10 @@ var HideUISection = class {
 
 // src/ui/UnusedParameters.module.css
 var UnusedParameters_default = {
-  "header": "UnusedParameters-module__header_BZL2TW__0200",
-  "hidden": "UnusedParameters-module__hidden_BZL2TW__0200",
-  "paramListItem": "UnusedParameters-module__param-list-item_BZL2TW__0200",
-  "unusedParameters": "UnusedParameters-module__unused-parameters_BZL2TW__0200"
+  "header": "UnusedParameters-module__header_BZL2TW__0213",
+  "hidden": "UnusedParameters-module__hidden_BZL2TW__0213",
+  "paramListItem": "UnusedParameters-module__param-list-item_BZL2TW__0213",
+  "unusedParameters": "UnusedParameters-module__unused-parameters_BZL2TW__0213"
 };
 
 // src/ui/UnusedParameters.ts
@@ -627,15 +628,15 @@ var UnusedParameters = class {
 
 // src/ui/ViewerUI.module.css
 var ViewerUI_default = {
-  "contents": "ViewerUI-module__contents_ne7v1W__0200",
-  "emptyState": "ViewerUI-module__empty-state_ne7v1W__0200",
-  "githubLink": "ViewerUI-module__github-link_ne7v1W__0200",
-  "githubLogo": "ViewerUI-module__github-logo_ne7v1W__0200",
-  "header": "ViewerUI-module__header_ne7v1W__0200",
-  "logo": "ViewerUI-module__logo_ne7v1W__0200",
-  "menuButton": "ViewerUI-module__menu-button_ne7v1W__0200",
-  "title": "ViewerUI-module__title_ne7v1W__0200",
-  "viewerUi": "ViewerUI-module__viewer-ui_ne7v1W__0200"
+  "contents": "ViewerUI-module__contents_ne7v1W__0213",
+  "emptyState": "ViewerUI-module__empty-state_ne7v1W__0213",
+  "githubLink": "ViewerUI-module__github-link_ne7v1W__0213",
+  "githubLogo": "ViewerUI-module__github-logo_ne7v1W__0213",
+  "header": "ViewerUI-module__header_ne7v1W__0213",
+  "logo": "ViewerUI-module__logo_ne7v1W__0213",
+  "menuButton": "ViewerUI-module__menu-button_ne7v1W__0213",
+  "title": "ViewerUI-module__title_ne7v1W__0213",
+  "viewerUi": "ViewerUI-module__viewer-ui_ne7v1W__0213"
 };
 
 // src/ui/ViewerUI.ts

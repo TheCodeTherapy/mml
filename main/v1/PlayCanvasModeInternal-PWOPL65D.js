@@ -3,7 +3,7 @@ import {
   calculateContentBounds,
   envMaps,
   parseXYZ
-} from "./chunk-FLV626LB.js";
+} from "./chunk-S7GAP2SA.js";
 import {
   Animation,
   AnimationGraphics,
@@ -33,6 +33,7 @@ import {
   ModelGraphics,
   NetworkedDOMWebsocketStatus,
   NetworkedDOMWebsocketStatusToString,
+  OverlayGraphics,
   PlaneGraphics,
   PositionProbeGraphics,
   PromptGraphics,
@@ -63,7 +64,7 @@ import {
   getRelativePositionAndRotationRelativeToObject,
   parseColorAttribute,
   setDebugGlobals
-} from "./chunk-EPLE3BMH.js";
+} from "./chunk-YL4BJBHM.js";
 
 // ../../node_modules/playcanvas/build/playcanvas/src/core/constants.js
 var TRACEID_GPU_TIMINGS = "GpuTimings";
@@ -54215,20 +54216,22 @@ var PlayCanvasClickTrigger = class _PlayCanvasClickTrigger {
       console.warn("No rigidbody system found in the PlayCanvas app. Cannot raycast.");
       return;
     }
-    const result = rigidbodySystem.raycastFirst(from, to);
-    if (result) {
-      const hitEntity = result.entity;
-      let mElement;
-      for (let entity = hitEntity; entity; entity = entity.parent) {
-        mElement = MElement.getMElementFromObject(entity);
-        if (mElement) {
-          break;
+    const intersections = rigidbodySystem.raycastAll(from, to);
+    intersections.sort((a, b) => a.point.distance(from) - b.point.distance(from));
+    for (const intersection of intersections) {
+      let obj = intersection.entity;
+      currentIntersection: while (obj) {
+        const mElement = MElement.getMElementFromObject(obj);
+        if (!mElement) {
+          obj = obj.parent;
+          continue currentIntersection;
         }
-      }
-      if (mElement && TransformableElement.isTransformableElement(mElement) && mElement.isClickable()) {
+        if (!mElement.isClickable()) {
+          break currentIntersection;
+        }
         const elementRelative = getRelativePositionAndRotationRelativeToObject(
           {
-            position: result.point,
+            position: intersection.point,
             rotation: {
               x: 0,
               y: 0,
@@ -56860,6 +56863,24 @@ var PlayCanvasModel = class extends ModelGraphics {
     }
   }
 };
+var PlayCanvasOverlay = class extends OverlayGraphics {
+  constructor(overlay) {
+    super(overlay);
+    this.overlay = overlay;
+  }
+  disable() {
+  }
+  enable() {
+  }
+  setAnchor() {
+  }
+  setOffsetX() {
+  }
+  setOffsetY() {
+  }
+  dispose() {
+  }
+};
 var PlayCanvasPlane = class extends PlaneGraphics {
   constructor(plane) {
     super(plane);
@@ -57583,6 +57604,7 @@ var PlayCanvasGraphicsInterface = {
   MMLLabelGraphicsInterface: (element) => new PlayCanvasLabel(element),
   MMLLightGraphicsInterface: (element) => new PlayCanvasLight(element),
   MMLLinkGraphicsInterface: (element) => new PlayCanvasLink(element),
+  MMLOverlayGraphicsInterface: (element) => new PlayCanvasOverlay(element),
   MMLModelGraphicsInterface: (element, updateMeshCallback) => new PlayCanvasModel(element, updateMeshCallback),
   MMLPlaneGraphicsInterface: (element) => new PlayCanvasPlane(element),
   MMLPositionProbeGraphicsInterface: (element) => new PlayCanvasPositionProbe(element),
@@ -58293,6 +58315,7 @@ var PlayCanvasModeInternal = class {
       fullScreenMMLScene,
       graphicsAdapter
     );
+    fullScreenMMLScene.getLoadingProgressManager().setInitialLoad(true);
     this.loadedState = {
       mmlNetworkSource,
       graphicsAdapter,
@@ -58462,4 +58485,4 @@ var PlayCanvasModeInternal = class {
 export {
   PlayCanvasModeInternal
 };
-//# sourceMappingURL=PlayCanvasModeInternal-VEOVQGCF.js.map
+//# sourceMappingURL=PlayCanvasModeInternal-PWOPL65D.js.map

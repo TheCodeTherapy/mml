@@ -1,6 +1,6 @@
 import {
   TransformableElement
-} from "./chunk-EPLE3BMH.js";
+} from "./chunk-YL4BJBHM.js";
 
 // src/calculateContentBounds.ts
 function calculateContentBounds(rootElement) {
@@ -102,4 +102,4 @@ export {
   envMaps,
   parseXYZ
 };
-//# sourceMappingURL=chunk-FLV626LB.js.map
+//# sourceMappingURL=chunk-S7GAP2SA.js.map

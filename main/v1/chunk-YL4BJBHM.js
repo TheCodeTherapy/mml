@@ -292,6 +292,31 @@ function decodeNodeDescription(buffer) {
   return node;
 }
 var networkedDOMProtocolSubProtocol_v0_2 = "networked-dom-v0.2";
+var networkedDOMProtocolSubProtocol_v0_2_1 = "networked-dom-v0.2.1";
+var networkedDOMProtocolSubProtocol_v0_2_SubVersionsList = [
+  networkedDOMProtocolSubProtocol_v0_2_1,
+  networkedDOMProtocolSubProtocol_v0_2
+];
+var protocolSubVersionMap = {
+  [networkedDOMProtocolSubProtocol_v0_2]: 0,
+  [networkedDOMProtocolSubProtocol_v0_2_1]: 1
+};
+function getNetworkedDOMProtocolSubProtocol_v0_2Subversion(protocol) {
+  return protocolSubVersionMap[protocol] ?? null;
+}
+function getNetworkedDOMProtocolSubProtocol_v0_2SubversionOrThrow(protocol) {
+  const subversion = getNetworkedDOMProtocolSubProtocol_v0_2Subversion(protocol);
+  if (subversion === null) {
+    throw new Error(`Unrecognized networked-dom-v0.2 protocol subversion: ${protocol}`);
+  }
+  return subversion;
+}
+function isNetworkedDOMProtocolSubProtocol_v0_2(protocol) {
+  return networkedDOMProtocolSubProtocol_v0_2_SubVersionsList.includes(protocol);
+}
+function protocolSubversionHasConnectionTokens(protocolSubversion) {
+  return protocolSubversion >= 1;
+}
 var SnapshotMessageType = 1;
 var BatchStartMessageType = 2;
 var DocumentTimeMessageType = 3;
@@ -309,12 +334,27 @@ var ConnectUsersMessageType = 14;
 var DisconnectUsersMessageType = 15;
 var EventMessageType = 16;
 var PongMessageType = 17;
-function encodeConnectUsers(connectUsersMessage, writer) {
+function encodeConnectUsers(connectUsersMessage, writer, protocolSubversion) {
   const connectionIdsLength = connectUsersMessage.connectionIds.length;
   writer.writeUint8(ConnectUsersMessageType);
   writer.writeUVarint(connectionIdsLength);
   for (let i = 0; i < connectionIdsLength; i++) {
     writer.writeUVarint(connectUsersMessage.connectionIds[i]);
+  }
+  if (protocolSubversionHasConnectionTokens(protocolSubversion)) {
+    if (connectUsersMessage.connectionTokens.length !== connectionIdsLength) {
+      throw new Error(
+        `connectionTokens length (${connectUsersMessage.connectionTokens.length}) does not match connectionIds length (${connectionIdsLength})`
+      );
+    }
+    for (let i = 0; i < connectionIdsLength; i++) {
+      const token = connectUsersMessage.connectionTokens[i];
+      if (token === null || token === void 0) {
+        writer.writeUVarint(0);
+      } else {
+        writer.writeLengthPrefixedString(token);
+      }
+    }
   }
 }
 function encodeDisconnectUsers(disconnectUsersMessage, writer) {
@@ -513,11 +553,11 @@ function decodeServerMessages(buffer) {
   }
   return messages;
 }
-function encodeClientMessage(message, writer) {
+function encodeClientMessage(message, writer, protocolSubversion) {
   const type = message.type;
   switch (type) {
     case "connectUsers":
-      return encodeConnectUsers(message, writer);
+      return encodeConnectUsers(message, writer, protocolSubversion);
     case "disconnectUsers":
       return encodeDisconnectUsers(message, writer);
     case "event":
@@ -591,7 +631,7 @@ var DOMSanitizer = class _DOMSanitizer {
     return c >= "0" && c <= "9";
   }
   static IsASCIIAlpha(c) {
-    return c >= "a" && c <= "z";
+    return c >= "a" && c <= "z" || c >= "A" && c <= "Z";
   }
   static IsValidAttributeName(characters) {
     const c = characters[0];
@@ -614,6 +654,172 @@ var DOMSanitizer = class _DOMSanitizer {
     return !attribute.startsWith("on");
   }
 };
+var ALWAYS_DISALLOWED_TAGS = /* @__PURE__ */ new Set(["foreignobject", "iframe", "script"]);
+var SVG_TAG_NAMES_ADJUSTMENT_MAP = new Map(
+  [
+    "svg",
+    "defs",
+    "g",
+    "text",
+    "filter",
+    "stop",
+    "path",
+    "rect",
+    "line",
+    "circle",
+    "animate",
+    "altGlyph",
+    "altGlyphDef",
+    "altGlyphItem",
+    "animateColor",
+    "animateMotion",
+    "animateTransform",
+    "clipPath",
+    "feBlend",
+    "feDropShadow",
+    "feColorMatrix",
+    "feComponentTransfer",
+    "feComposite",
+    "feConvolveMatrix",
+    "feDiffuseLighting",
+    "feDisplacementMap",
+    "feDistantLight",
+    "feFlood",
+    "feFuncA",
+    "feFuncB",
+    "feFuncG",
+    "feFuncR",
+    "feGaussianBlur",
+    "feImage",
+    "feMerge",
+    "feMergeNode",
+    "feMorphology",
+    "feOffset",
+    "fePointLight",
+    "feSpecularLighting",
+    "feSpotLight",
+    "feTile",
+    "feTurbulence",
+    "glyphRef",
+    "linearGradient",
+    "radialGradient",
+    "textPath"
+    // `foreignObject` is explicitly disallowed because it allows injecting arbitrary HTML
+    // "foreignObject",
+  ].map((tn) => [tn.toLowerCase(), tn])
+);
+var SVG_ATTRS_ADJUSTMENT_MAP = new Map(
+  [
+    "attributeName",
+    "attributeType",
+    "baseFrequency",
+    "baseProfile",
+    "calcMode",
+    "clipPathUnits",
+    "diffuseConstant",
+    "edgeMode",
+    "filterUnits",
+    "glyphRef",
+    "gradientTransform",
+    "gradientUnits",
+    "kernelMatrix",
+    "kernelUnitLength",
+    "keyPoints",
+    "keySplines",
+    "keyTimes",
+    "lengthAdjust",
+    "limitingConeAngle",
+    "markerHeight",
+    "markerUnits",
+    "markerWidth",
+    "maskContentUnits",
+    "maskUnits",
+    "numOctaves",
+    "pathLength",
+    "patternContentUnits",
+    "patternTransform",
+    "patternUnits",
+    "pointsAtX",
+    "pointsAtY",
+    "pointsAtZ",
+    "preserveAlpha",
+    "preserveAspectRatio",
+    "primitiveUnits",
+    "refX",
+    "refY",
+    "repeatCount",
+    "repeatDur",
+    "requiredExtensions",
+    "requiredFeatures",
+    "specularConstant",
+    "specularExponent",
+    "spreadMethod",
+    "startOffset",
+    "stdDeviation",
+    "stitchTiles",
+    "surfaceScale",
+    "systemLanguage",
+    "tableValues",
+    "targetX",
+    "targetY",
+    "textLength",
+    "viewBox",
+    "viewTarget",
+    "xChannelSelector",
+    "yChannelSelector",
+    "zoomAndPan"
+  ].map((attr) => [attr.toLowerCase(), attr])
+);
+function remapAttributeName(attrName) {
+  const remapped = SVG_ATTRS_ADJUSTMENT_MAP.get(attrName.toLowerCase());
+  if (remapped) {
+    return remapped;
+  }
+  return attrName;
+}
+function createElementWithSVGSupport(tag, options = {}) {
+  let filteredTag = tag.toLowerCase();
+  if (ALWAYS_DISALLOWED_TAGS.has(filteredTag.toLowerCase())) {
+    console.error("Disallowing tag", filteredTag);
+    filteredTag = options.replacementTagPrefix ? options.replacementTagPrefix + tag : `x-${tag}`;
+  }
+  let svgTagMapping;
+  if (options.allowSVGElements) {
+    svgTagMapping = SVG_TAG_NAMES_ADJUSTMENT_MAP.get(filteredTag);
+  }
+  if (svgTagMapping) {
+    filteredTag = svgTagMapping;
+    const xmlns = "http://www.w3.org/2000/svg";
+    return document.createElementNS(xmlns, filteredTag);
+  } else {
+    if (options.tagPrefix) {
+      if (!tag.toLowerCase().startsWith(options.tagPrefix.toLowerCase())) {
+        filteredTag = options.replacementTagPrefix ? options.replacementTagPrefix + tag : `x-${tag}`;
+      }
+    }
+    return document.createElement(filteredTag);
+  }
+}
+function setElementAttribute(element, key, value) {
+  if (DOMSanitizer.shouldAcceptAttribute(key)) {
+    const remappedKey = remapAttributeName(key);
+    element.setAttribute(remappedKey, value);
+  }
+}
+function getChildrenTarget(parent) {
+  let targetForChildren = parent;
+  if (parent.getPortalElement) {
+    targetForChildren = parent.getPortalElement();
+  }
+  return targetForChildren;
+}
+function getRemovalTarget(parent) {
+  let targetForRemoval = parent;
+  if (parent.getPortalElement) {
+    targetForRemoval = parent.getPortalElement();
+  }
+  return targetForRemoval;
+}
 var NetworkedDOMWebsocketV01Adapter = class {
   constructor(websocket, parentElement, connectedCallback, timeCallback, options = {}) {
     this.websocket = websocket;
@@ -732,6 +938,7 @@ var NetworkedDOMWebsocketV01Adapter = class {
     if (!isHTMLElement(parent, this.parentElement)) {
       throw new Error("Parent is not an HTMLElement (that supports children)");
     }
+    const targetForChildren = getChildrenTarget(parent);
     let nextElement = null;
     let previousElement = null;
     if (previousNodeId) {
@@ -753,12 +960,12 @@ var NetworkedDOMWebsocketV01Adapter = class {
         if (nextElement) {
           const docFrag = new DocumentFragment();
           docFrag.append(...elementsToAdd);
-          parent.insertBefore(docFrag, nextElement);
+          targetForChildren.insertBefore(docFrag, nextElement);
         } else {
-          parent.append(...elementsToAdd);
+          targetForChildren.append(...elementsToAdd);
         }
       } else {
-        parent.prepend(...elementsToAdd);
+        targetForChildren.prepend(...elementsToAdd);
       }
     }
     for (const removedNode of removedNodes) {
@@ -768,15 +975,20 @@ var NetworkedDOMWebsocketV01Adapter = class {
       }
       this.elementToId.delete(childElement);
       this.idToElement.delete(removedNode);
-      parent.removeChild(childElement);
+      const targetForRemoval = getRemovalTarget(parent);
+      targetForRemoval.removeChild(childElement);
       if (isHTMLElement(childElement, this.parentElement)) {
         this.removeChildElementIds(childElement);
       }
     }
   }
   removeChildElementIds(parent) {
-    for (let i = 0; i < parent.children.length; i++) {
-      const child = parent.children[i];
+    const portal = getChildrenTarget(parent);
+    if (portal !== parent) {
+      this.removeChildElementIds(portal);
+    }
+    for (let i = 0; i < parent.childNodes.length; i++) {
+      const child = parent.childNodes[i];
       const childId = this.elementToId.get(child);
       if (!childId) {
         console.error("Inner child of removed element had no id", child);
@@ -816,9 +1028,7 @@ var NetworkedDOMWebsocketV01Adapter = class {
         if (newValue === null) {
           element.removeAttribute(attribute);
         } else {
-          if (DOMSanitizer.shouldAcceptAttribute(attribute)) {
-            element.setAttribute(attribute, newValue);
-          }
+          setElementAttribute(element, attribute, newValue);
         }
       } else {
         console.error("Element is not an HTMLElement and cannot support attributes", element);
@@ -857,13 +1067,7 @@ var NetworkedDOMWebsocketV01Adapter = class {
     }
     let element;
     try {
-      let filteredTag = tag;
-      if (this.options.tagPrefix) {
-        if (!tag.toLowerCase().startsWith(this.options.tagPrefix.toLowerCase())) {
-          filteredTag = this.options.replacementTagPrefix ? this.options.replacementTagPrefix + tag : `x-${tag}`;
-        }
-      }
-      element = document.createElement(filteredTag);
+      element = createElementWithSVGSupport(tag, this.options);
     } catch (e) {
       console.error(`Error creating element: (${tag})`, e);
       element = document.createElement("x-div");
@@ -871,10 +1075,8 @@ var NetworkedDOMWebsocketV01Adapter = class {
     this.idToElement.set(nodeId, element);
     this.elementToId.set(element, nodeId);
     for (const key in attributes) {
-      if (DOMSanitizer.shouldAcceptAttribute(key)) {
-        const value = attributes[key];
-        element.setAttribute(key, value);
-      }
+      const value = attributes[key];
+      setElementAttribute(element, key, value);
     }
     if (children) {
       for (const child of children) {
@@ -903,7 +1105,14 @@ var NetworkedDOMWebsocketV02Adapter = class {
     this.batchMode = false;
     this.batchMessages = [];
     this.websocket.binaryType = "arraybuffer";
-    this.send({ type: "connectUsers", connectionIds: [connectionId] });
+    this.protocolSubversion = getNetworkedDOMProtocolSubProtocol_v0_2SubversionOrThrow(
+      websocket.protocol
+    );
+    this.send({
+      type: "connectUsers",
+      connectionIds: [connectionId],
+      connectionTokens: [this.options.connectionToken ?? null]
+    });
   }
   handleEvent(element, event) {
     const nodeId = this.elementToId.get(element);
@@ -927,7 +1136,7 @@ var NetworkedDOMWebsocketV02Adapter = class {
   }
   send(message) {
     const writer = new BufferWriter(256);
-    encodeClientMessage(message, writer);
+    encodeClientMessage(message, writer, this.protocolSubversion);
     this.websocket.send(writer.getBuffer());
   }
   clearContents() {
@@ -1068,6 +1277,7 @@ var NetworkedDOMWebsocketV02Adapter = class {
     if (!isHTMLElement(parent, this.parentElement)) {
       throw new Error("Parent is not an HTMLElement (that supports children)");
     }
+    const targetForChildren = getChildrenTarget(parent);
     let nextElement = null;
     let previousElement = null;
     if (previousNodeId) {
@@ -1089,12 +1299,12 @@ var NetworkedDOMWebsocketV02Adapter = class {
         if (nextElement) {
           const docFrag = new DocumentFragment();
           docFrag.append(...elementsToAdd);
-          parent.insertBefore(docFrag, nextElement);
+          targetForChildren.insertBefore(docFrag, nextElement);
         } else {
-          parent.append(...elementsToAdd);
+          targetForChildren.append(...elementsToAdd);
         }
       } else {
-        parent.prepend(...elementsToAdd);
+        targetForChildren.prepend(...elementsToAdd);
       }
     }
   }
@@ -1122,15 +1332,20 @@ var NetworkedDOMWebsocketV02Adapter = class {
       this.elementToId.delete(childElement);
       this.idToElement.delete(removedNode);
       this.hiddenPlaceholderElements.delete(removedNode);
-      parent.removeChild(childElement);
+      const targetForRemoval = getRemovalTarget(parent);
+      targetForRemoval.removeChild(childElement);
       if (isHTMLElement(childElement, this.parentElement)) {
         this.removeChildElementIds(childElement);
       }
     }
   }
   removeChildElementIds(parent) {
-    for (let i = 0; i < parent.children.length; i++) {
-      const child = parent.children[i];
+    const portal = getChildrenTarget(parent);
+    if (portal !== parent) {
+      this.removeChildElementIds(portal);
+    }
+    for (let i = 0; i < parent.childNodes.length; i++) {
+      const child = parent.childNodes[i];
       const childId = this.elementToId.get(child);
       if (!childId) {
         console.error("Inner child of removed element had no id", child);
@@ -1182,9 +1397,7 @@ var NetworkedDOMWebsocketV02Adapter = class {
           if (newValue === null) {
             element.removeAttribute(key);
           } else {
-            if (DOMSanitizer.shouldAcceptAttribute(key)) {
-              element.setAttribute(key, newValue);
-            }
+            setElementAttribute(element, key, newValue);
           }
         }
       } else {
@@ -1221,22 +1434,14 @@ var NetworkedDOMWebsocketV02Adapter = class {
     }
     let element;
     try {
-      let filteredTag = tag;
-      if (this.options.tagPrefix) {
-        if (!tag.toLowerCase().startsWith(this.options.tagPrefix.toLowerCase())) {
-          filteredTag = this.options.replacementTagPrefix ? this.options.replacementTagPrefix + tag : `x-${tag}`;
-        }
-      }
-      element = document.createElement(filteredTag);
+      element = createElementWithSVGSupport(tag, this.options);
     } catch (e) {
       console.error(`Error creating element: (${tag})`, e);
       element = document.createElement("x-div");
     }
     for (const [key, value] of attributes) {
       if (value !== null) {
-        if (DOMSanitizer.shouldAcceptAttribute(key)) {
-          element.setAttribute(key, value);
-        }
+        setElementAttribute(element, key, value);
       }
     }
     if (children) {
@@ -1316,7 +1521,7 @@ var NetworkedDOMWebsocket = class {
   }
   static createWebSocket(url) {
     return new WebSocket(url, [
-      networkedDOMProtocolSubProtocol_v0_2,
+      ...networkedDOMProtocolSubProtocol_v0_2_SubVersionsList,
       networkedDOMProtocolSubProtocol_v0_1
     ]);
   }
@@ -1339,7 +1544,7 @@ var NetworkedDOMWebsocket = class {
       websocket.addEventListener("open", () => {
         clearTimeout(timeoutId);
         this.websocket = websocket;
-        const isV02 = websocket.protocol === networkedDOMProtocolSubProtocol_v0_2;
+        const isV02 = isNetworkedDOMProtocolSubProtocol_v0_2(websocket.protocol);
         let websocketAdapter;
         if (isV02) {
           websocketAdapter = new NetworkedDOMWebsocketV02Adapter(
@@ -1471,7 +1676,7 @@ var NetworkedDOMWebsocket = class {
   }
 };
 function isHTMLElement(node, rootNode) {
-  if (node instanceof HTMLElement) {
+  if (node instanceof HTMLElement || node instanceof Element) {
     return true;
   }
   if (!rootNode.ownerDocument.defaultView) {
@@ -3505,6 +3710,31 @@ _CollideableHelper.AttributeHandler = new AttributeHandler({
 });
 _CollideableHelper.observedAttributes = _CollideableHelper.AttributeHandler.getAttributes();
 var CollideableHelper = _CollideableHelper;
+var clickableAttributeName = "clickable";
+var defaultClickable = true;
+var _ClickableHelper = class _ClickableHelper2 {
+  constructor() {
+    this.props = {
+      clickable: defaultClickable
+    };
+  }
+  isClickable() {
+    return this.props.clickable;
+  }
+  handle(name, newValue) {
+    _ClickableHelper2.AttributeHandler.handle(this, name, newValue);
+  }
+};
+_ClickableHelper.AttributeHandler = new AttributeHandler({
+  [clickableAttributeName]: (instance, newValue) => {
+    const clickable = parseBoolAttribute(newValue, defaultClickable);
+    if (clickable !== instance.props.clickable) {
+      instance.props.clickable = clickable;
+    }
+  }
+});
+_ClickableHelper.observedAttributes = _ClickableHelper.AttributeHandler.getAttributes();
+var ClickableHelper = _ClickableHelper;
 var debugAttributeName = "debug";
 var DebugHelper = class {
   constructor(element) {
@@ -4026,6 +4256,7 @@ var _Model = class _Model2 extends TransformableElement {
       debug: defaultModelDebug
     };
     this.collideableHelper = new CollideableHelper(this);
+    this.clickableHelper = new ClickableHelper();
     this.modelGraphics = null;
     this.isModel = true;
   }
@@ -4042,7 +4273,8 @@ var _Model = class _Model2 extends TransformableElement {
     return [
       ...TransformableElement.observedAttributes,
       ..._Model2.attributeHandler.getAttributes(),
-      ...CollideableHelper.observedAttributes
+      ...CollideableHelper.observedAttributes,
+      ...ClickableHelper.observedAttributes
     ];
   }
   getContentBounds() {
@@ -4066,7 +4298,7 @@ var _Model = class _Model2 extends TransformableElement {
     (_a = this.modelGraphics) == null ? void 0 : _a.transformed();
   }
   isClickable() {
-    return true;
+    return this.clickableHelper.isClickable();
   }
   addSideEffectChild(child) {
     if (Animation.isAnimation(child)) {
@@ -4093,6 +4325,7 @@ var _Model = class _Model2 extends TransformableElement {
     super.attributeChangedCallback(name, oldValue, newValue);
     _Model2.attributeHandler.handle(this, name, newValue);
     this.collideableHelper.handle(name, newValue);
+    this.clickableHelper.handle(name, newValue);
     if (TransformableElement.observedAttributes.includes(name)) {
       this.modelGraphics.transformed();
     }
@@ -4414,7 +4647,7 @@ var _Audio = class _Audio2 extends TransformableElement {
   parentTransformed() {
   }
   isClickable() {
-    return true;
+    return false;
   }
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.audioGraphics) {
@@ -4519,9 +4752,6 @@ var Character = class extends Model {
   }
   parentTransformed() {
     super.parentTransformed();
-  }
-  isClickable() {
-    return true;
   }
   connectedCallback() {
     super.connectedCallback();
@@ -4781,6 +5011,7 @@ var _Cube = class _Cube2 extends TransformableElement {
       ]
     });
     this.collideableHelper = new CollideableHelper(this);
+    this.clickableHelper = new ClickableHelper();
   }
   enable() {
     this.collideableHelper.enable();
@@ -4801,7 +5032,8 @@ var _Cube = class _Cube2 extends TransformableElement {
     return [
       ...TransformableElement.observedAttributes,
       ..._Cube2.attributeHandler.getAttributes(),
-      ...CollideableHelper.observedAttributes
+      ...CollideableHelper.observedAttributes,
+      ...ClickableHelper.observedAttributes
     ];
   }
   addSideEffectChild(child) {
@@ -4816,7 +5048,7 @@ var _Cube = class _Cube2 extends TransformableElement {
     this.collideableHelper.parentTransformed();
   }
   isClickable() {
-    return true;
+    return this.clickableHelper.isClickable();
   }
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.cubeGraphics) {
@@ -4825,6 +5057,7 @@ var _Cube = class _Cube2 extends TransformableElement {
     super.attributeChangedCallback(name, oldValue, newValue);
     _Cube2.attributeHandler.handle(this, name, newValue);
     this.collideableHelper.handle(name, newValue);
+    this.clickableHelper.handle(name, newValue);
   }
   connectedCallback() {
     var _a;
@@ -4949,6 +5182,7 @@ var _Cylinder = class _Cylinder2 extends TransformableElement {
       ]
     });
     this.collideableHelper = new CollideableHelper(this);
+    this.clickableHelper = new ClickableHelper();
   }
   enable() {
     this.collideableHelper.enable();
@@ -4969,7 +5203,8 @@ var _Cylinder = class _Cylinder2 extends TransformableElement {
     return [
       ...TransformableElement.observedAttributes,
       ..._Cylinder2.attributeHandler.getAttributes(),
-      ...CollideableHelper.observedAttributes
+      ...CollideableHelper.observedAttributes,
+      ...ClickableHelper.observedAttributes
     ];
   }
   addSideEffectChild(child) {
@@ -4984,7 +5219,7 @@ var _Cylinder = class _Cylinder2 extends TransformableElement {
     this.collideableHelper.parentTransformed();
   }
   isClickable() {
-    return true;
+    return this.clickableHelper.isClickable();
   }
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.cylinderGraphics) {
@@ -4993,6 +5228,7 @@ var _Cylinder = class _Cylinder2 extends TransformableElement {
     super.attributeChangedCallback(name, oldValue, newValue);
     _Cylinder2.attributeHandler.handle(this, name, newValue);
     this.collideableHelper.handle(name, newValue);
+    this.clickableHelper.handle(name, newValue);
   }
   connectedCallback() {
     var _a;
@@ -5099,6 +5335,12 @@ function createWrappedScene(scene2, loadingProgressManager) {
       if (scene2.removeChatProbe) {
         scene2.removeChatProbe(chatProbe);
       }
+    },
+    getOverlayElement() {
+      if (scene2.getOverlayElement) {
+        return scene2.getOverlayElement();
+      }
+      return null;
     },
     hasGraphicsAdapter() {
       return scene2.hasGraphicsAdapter();
@@ -5624,6 +5866,114 @@ var StaticHTMLFrameInstance = class {
     this.loadingProgressManager.removeLoadingDocument(this);
   }
 };
+var MMLNetworkSource = class _MMLNetworkSource {
+  constructor(options) {
+    this.options = options;
+    this.websocket = null;
+  }
+  static create(options) {
+    const mmlNetworkSource = new _MMLNetworkSource(options);
+    mmlNetworkSource.init();
+    return mmlNetworkSource;
+  }
+  init() {
+    let overriddenHandler = null;
+    const eventHandler = (element, event) => {
+      if (!overriddenHandler) {
+        throw new Error("overriddenHandler not set");
+      }
+      overriddenHandler(element, event);
+    };
+    const loadingProgressManager = new LoadingProgressManager();
+    const wrappedScene = createWrappedScene(this.options.mmlScene, loadingProgressManager);
+    const src = this.options.url;
+    this.remoteDocumentWrapper = new RemoteDocumentWrapper(
+      src,
+      this.options.windowTarget,
+      wrappedScene,
+      eventHandler
+    );
+    this.options.targetForWrappers.append(this.remoteDocumentWrapper.remoteDocument);
+    let sceneLoadingProgressManager = null;
+    if (this.options.mmlScene.getLoadingProgressManager) {
+      sceneLoadingProgressManager = this.options.mmlScene.getLoadingProgressManager();
+      loadingProgressManager.addProgressCallback(() => {
+        sceneLoadingProgressManager == null ? void 0 : sceneLoadingProgressManager.updateDocumentProgress(this);
+      });
+    }
+    const isWebsocket = src.startsWith("ws://") || src.startsWith("wss://");
+    if (isWebsocket) {
+      const websocket = new NetworkedDOMWebsocket(
+        this.options.url,
+        NetworkedDOMWebsocket.createWebSocket,
+        this.remoteDocumentWrapper.remoteDocument,
+        (time) => {
+          this.remoteDocumentWrapper.setDocumentTime(time);
+        },
+        (status) => {
+          if (status === NetworkedDOMWebsocketStatus.Reconnecting) {
+            this.remoteDocumentWrapper.remoteDocument.showError(true);
+            loadingProgressManager.setInitialLoad(new Error("Failed to connect"));
+          } else if (status === NetworkedDOMWebsocketStatus.Connected) {
+            this.remoteDocumentWrapper.remoteDocument.showError(false);
+            loadingProgressManager.setInitialLoad(true);
+          } else {
+            this.remoteDocumentWrapper.remoteDocument.showError(false);
+          }
+          this.options.statusUpdated(status);
+        },
+        {
+          tagPrefix: "m-",
+          // If overlays are allowed, allow SVG elements to populate them
+          allowSVGElements: this.options.allowOverlay,
+          connectionToken: this.options.connectionToken ?? null
+        }
+      );
+      this.websocket = websocket;
+      overriddenHandler = (element, event) => {
+        websocket.handleEvent(element, event);
+      };
+    } else {
+      fetchRemoteStaticMML(this.options.url).then((remoteDocumentBody) => {
+        this.remoteDocumentWrapper.remoteDocument.append(remoteDocumentBody);
+        loadingProgressManager == null ? void 0 : loadingProgressManager.setInitialLoad(true);
+      }).catch((err) => {
+        loadingProgressManager == null ? void 0 : loadingProgressManager.setInitialLoad(err);
+      });
+      overriddenHandler = () => {
+      };
+    }
+    sceneLoadingProgressManager == null ? void 0 : sceneLoadingProgressManager.addLoadingDocument(this, this.options.url, loadingProgressManager);
+  }
+  /**
+   * Returns a URL relative to the given host if the src starts with "ws:///" or "wss:///".
+   * If the src does not start with either prefix, it is returned unchanged.
+   *
+   * @param {string} host - The host to use for constructing the potentially relative URL.
+   * @param {string} src - The URL, which may be relative (starting with "ws:///" or "wss:///") or absolute.
+   * @returns {string} The absolute URL (if it were previously relative ws:/// or wss:///).
+   */
+  static resolveRelativeUrl(host, src) {
+    const insecurePrefix = "ws:///";
+    const securePrefix = "wss:///";
+    if (src.startsWith(insecurePrefix)) {
+      return `ws://${host}/${src.substring(insecurePrefix.length)}`;
+    } else if (src.startsWith(securePrefix)) {
+      return `wss://${host}/${src.substring(securePrefix.length)}`;
+    } else {
+      return src;
+    }
+  }
+  dispose() {
+    var _a, _b, _c;
+    if (this.websocket) {
+      this.websocket.stop();
+      this.websocket = null;
+    }
+    (_c = (_b = (_a = this.options.mmlScene).getLoadingProgressManager) == null ? void 0 : _b.call(_a)) == null ? void 0 : _c.removeLoadingDocument(this);
+    this.remoteDocumentWrapper.remoteDocument.remove();
+  }
+};
 var WebSocketFrameInstance = class {
   constructor(targetElement, src, scene2) {
     var _a, _b;
@@ -5643,7 +5993,7 @@ var WebSocketFrameInstance = class {
       var _a2, _b2;
       (_b2 = (_a2 = scene2.getLoadingProgressManager) == null ? void 0 : _a2.call(scene2)) == null ? void 0 : _b2.updateDocumentProgress(this);
     });
-    const websocketAddress = this.srcToAddress(this.src);
+    const websocketAddress = MMLNetworkSource.resolveRelativeUrl(this.getDocumentHost(), this.src);
     (_b = (_a = scene2.getLoadingProgressManager) == null ? void 0 : _a.call(scene2)) == null ? void 0 : _b.addLoadingDocument(this, websocketAddress, this.loadingProgressManager);
     const wrappedScene = createWrappedScene(this.scene, this.loadingProgressManager);
     this.remoteDocumentWrapper = new RemoteDocumentWrapper(
@@ -5686,17 +6036,6 @@ var WebSocketFrameInstance = class {
     overriddenHandler = (element, event) => {
       this.domWebsocket.handleEvent(element, event);
     };
-  }
-  srcToAddress(src) {
-    const insecurePrefix = "ws:///";
-    const securePrefix = "wss:///";
-    if (src.startsWith(insecurePrefix)) {
-      return `ws://${this.getDocumentHost()}/${src.substring(insecurePrefix.length)}`;
-    } else if (src.startsWith(securePrefix)) {
-      return `wss://${this.getDocumentHost()}/${src.substring(securePrefix.length)}`;
-    } else {
-      return src;
-    }
   }
   getDocumentHost() {
     const remoteDocument = this.targetForWrapper.getInitiatedRemoteDocument();
@@ -5808,7 +6147,7 @@ var _Frame = class _Frame2 extends TransformableElement {
     this.boundsUpdated();
   }
   isClickable() {
-    return true;
+    return false;
   }
   startEmitting() {
     if (this.timer) {
@@ -5980,7 +6319,7 @@ var _Group = class _Group2 extends TransformableElement {
   parentTransformed() {
   }
   isClickable() {
-    return true;
+    return false;
   }
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.transformableElementGraphics) {
@@ -6059,6 +6398,7 @@ var _Image = class _Image2 extends TransformableElement {
       ]
     });
     this.collideableHelper = new CollideableHelper(this);
+    this.clickableHelper = new ClickableHelper();
   }
   enable() {
     this.collideableHelper.enable();
@@ -6070,7 +6410,8 @@ var _Image = class _Image2 extends TransformableElement {
     return [
       ...TransformableElement.observedAttributes,
       ..._Image2.attributeHandler.getAttributes(),
-      ...CollideableHelper.observedAttributes
+      ...CollideableHelper.observedAttributes,
+      ...ClickableHelper.observedAttributes
     ];
   }
   getContentBounds() {
@@ -6096,7 +6437,7 @@ var _Image = class _Image2 extends TransformableElement {
     this.collideableHelper.parentTransformed();
   }
   isClickable() {
-    return true;
+    return this.clickableHelper.isClickable();
   }
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.imageGraphics) {
@@ -6105,6 +6446,7 @@ var _Image = class _Image2 extends TransformableElement {
     super.attributeChangedCallback(name, oldValue, newValue);
     _Image2.attributeHandler.handle(this, name, newValue);
     this.collideableHelper.handle(name, newValue);
+    this.clickableHelper.handle(name, newValue);
   }
   connectedCallback() {
     var _a;
@@ -6341,6 +6683,7 @@ var _Label = class _Label2 extends TransformableElement {
   constructor() {
     super();
     this.collideableHelper = new CollideableHelper(this);
+    this.clickableHelper = new ClickableHelper();
     this.labelAnimatedAttributeHelper = new AnimatedAttributeHelper(this, {
       color: [
         2,
@@ -6364,18 +6707,20 @@ var _Label = class _Label2 extends TransformableElement {
         0,
         defaultLabelWidth,
         (newValue) => {
-          var _a;
+          var _a, _b;
           this.props.width = newValue;
           (_a = this.labelGraphics) == null ? void 0 : _a.setWidth(this.props.width, this.props);
+          this.collideableHelper.updateCollider((_b = this.labelGraphics) == null ? void 0 : _b.getCollisionElement());
         }
       ],
       height: [
         0,
         defaultLabelHeight,
         (newValue) => {
-          var _a;
+          var _a, _b;
           this.props.height = newValue;
           (_a = this.labelGraphics) == null ? void 0 : _a.setHeight(this.props.height, this.props);
+          this.collideableHelper.updateCollider((_b = this.labelGraphics) == null ? void 0 : _b.getCollisionElement());
         }
       ],
       padding: [
@@ -6415,7 +6760,12 @@ var _Label = class _Label2 extends TransformableElement {
   disable() {
   }
   static get observedAttributes() {
-    return [...TransformableElement.observedAttributes, ..._Label2.attributeHandler.getAttributes()];
+    return [
+      ...TransformableElement.observedAttributes,
+      ..._Label2.attributeHandler.getAttributes(),
+      ...CollideableHelper.observedAttributes,
+      ...ClickableHelper.observedAttributes
+    ];
   }
   getContentBounds() {
     if (!this.transformableElementGraphics) {
@@ -6437,7 +6787,7 @@ var _Label = class _Label2 extends TransformableElement {
   parentTransformed() {
   }
   isClickable() {
-    return true;
+    return this.clickableHelper.isClickable();
   }
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.labelGraphics) {
@@ -6446,6 +6796,7 @@ var _Label = class _Label2 extends TransformableElement {
     super.attributeChangedCallback(name, oldValue, newValue);
     _Label2.attributeHandler.handle(this, name, newValue);
     this.collideableHelper.handle(name, newValue);
+    this.clickableHelper.handle(name, newValue);
   }
   connectedCallback() {
     var _a;
@@ -6811,6 +7162,234 @@ _Link.attributeHandler = new AttributeHandler({
   }
 });
 var Link = _Link;
+var OverlayAnchor = /* @__PURE__ */ ((OverlayAnchor2) => {
+  OverlayAnchor2["top-left"] = "top-left";
+  OverlayAnchor2["top-center"] = "top-center";
+  OverlayAnchor2["top-right"] = "top-right";
+  OverlayAnchor2["center-left"] = "center-left";
+  OverlayAnchor2["center"] = "center";
+  OverlayAnchor2["center-right"] = "center-right";
+  OverlayAnchor2["bottom-left"] = "bottom-left";
+  OverlayAnchor2["bottom-center"] = "bottom-center";
+  OverlayAnchor2["bottom-right"] = "bottom-right";
+  return OverlayAnchor2;
+})(OverlayAnchor || {});
+var _Overlay = class _Overlay2 extends TransformableElement {
+  constructor() {
+    super();
+    this.overlayGraphics = null;
+    this.overlayElement = null;
+    this.mode = "pending";
+    this.props = {
+      href: null,
+      target: null,
+      anchor: "top-left",
+      offsetX: 0,
+      offsetY: 0
+    };
+  }
+  static get observedAttributes() {
+    return [
+      ...TransformableElement.observedAttributes,
+      ..._Overlay2.attributeHandler.getAttributes()
+    ];
+  }
+  updateOverlayElementPosition() {
+    if (!this.overlayElement) {
+      return;
+    }
+    this.overlayElement.style.position = "absolute";
+    this.overlayElement.style.zIndex = "1000";
+    switch (this.props.anchor) {
+      case "top-left":
+        this.overlayElement.style.top = `0`;
+        this.overlayElement.style.left = `0`;
+        this.overlayElement.style.right = ``;
+        this.overlayElement.style.bottom = ``;
+        this.overlayElement.style.transformOrigin = "top left";
+        this.overlayElement.style.transform = `translateX(calc(${this.props.offsetX}px)) translateY(${this.props.offsetY}px)`;
+        break;
+      case "top-center":
+        this.overlayElement.style.top = `0`;
+        this.overlayElement.style.left = `50%`;
+        this.overlayElement.style.right = ``;
+        this.overlayElement.style.bottom = ``;
+        this.overlayElement.style.transformOrigin = "top center";
+        this.overlayElement.style.transform = `translateX(calc(-50% + ${this.props.offsetX}px)) translateY(${this.props.offsetY}px)`;
+        break;
+      case "top-right":
+        this.overlayElement.style.top = `0`;
+        this.overlayElement.style.right = `0`;
+        this.overlayElement.style.left = ``;
+        this.overlayElement.style.bottom = ``;
+        this.overlayElement.style.transformOrigin = "top right";
+        this.overlayElement.style.transform = `translateX(${this.props.offsetX}px) translateY(${this.props.offsetY}px)`;
+        break;
+      case "center-left":
+        this.overlayElement.style.top = "50%";
+        this.overlayElement.style.left = `0`;
+        this.overlayElement.style.right = ``;
+        this.overlayElement.style.bottom = ``;
+        this.overlayElement.style.transformOrigin = "center left";
+        this.overlayElement.style.transform = `translateX(calc(${this.props.offsetX}px)) translateY(calc(-50% + ${this.props.offsetY}px))`;
+        break;
+      case "center":
+        this.overlayElement.style.top = "50%";
+        this.overlayElement.style.left = "50%";
+        this.overlayElement.style.right = ``;
+        this.overlayElement.style.bottom = ``;
+        this.overlayElement.style.transformOrigin = "center";
+        this.overlayElement.style.transform = `translate(calc(-50% + ${this.props.offsetX}px), calc(-50% + ${this.props.offsetY}px))`;
+        break;
+      case "center-right":
+        this.overlayElement.style.top = "50%";
+        this.overlayElement.style.left = "100%";
+        this.overlayElement.style.right = ``;
+        this.overlayElement.style.bottom = ``;
+        this.overlayElement.style.transformOrigin = "center right";
+        this.overlayElement.style.transform = `translateX(calc(-100% + ${this.props.offsetX}px)) translateY(calc(-50% + ${this.props.offsetY}px))`;
+        break;
+      case "bottom-left":
+        this.overlayElement.style.top = "100%";
+        this.overlayElement.style.left = `${this.props.offsetX}px`;
+        this.overlayElement.style.right = ``;
+        this.overlayElement.style.bottom = ``;
+        this.overlayElement.style.transformOrigin = "bottom left";
+        this.overlayElement.style.transform = `translateX(${this.props.offsetX}px) translateY(calc(-100% + ${this.props.offsetY}px))`;
+        break;
+      case "bottom-center":
+        this.overlayElement.style.top = "100%";
+        this.overlayElement.style.left = "50%";
+        this.overlayElement.style.right = ``;
+        this.overlayElement.style.bottom = ``;
+        this.overlayElement.style.transformOrigin = "bottom center";
+        this.overlayElement.style.transform = `translateX(calc(-50% + ${this.props.offsetX}px)) translateY(calc(-100% + ${this.props.offsetY}px))`;
+        break;
+      case "bottom-right":
+        this.overlayElement.style.top = "100%";
+        this.overlayElement.style.left = "100%";
+        this.overlayElement.style.right = ``;
+        this.overlayElement.style.bottom = ``;
+        this.overlayElement.style.transformOrigin = "bottom right";
+        this.overlayElement.style.transform = `translateX(calc(-100% + ${this.props.offsetX}px)) translateY(calc(-100% + ${this.props.offsetY}px))`;
+        break;
+      default:
+        throw new Error(`Unknown anchor: ${this.props.anchor}`);
+    }
+  }
+  getPortalElement() {
+    if (this.mode === "direct") {
+      return this;
+    } else if (this.mode === "portal") {
+      if (!this.overlayElement) {
+        throw new Error("Overlay element is not set");
+      }
+      return this.overlayElement;
+    }
+    throw new Error("Unknown overlay mode");
+  }
+  parentTransformed() {
+  }
+  isClickable() {
+    return false;
+  }
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (!this.transformableElementGraphics) {
+      return;
+    }
+    super.attributeChangedCallback(name, oldValue, newValue);
+    _Overlay2.attributeHandler.handle(this, name, newValue);
+  }
+  disable() {
+  }
+  enable() {
+  }
+  getContentBounds() {
+    return null;
+  }
+  connectedCallback() {
+    var _a, _b;
+    super.connectedCallback();
+    if (!this.getScene().hasGraphicsAdapter() || this.overlayGraphics) {
+      return;
+    }
+    const remoteDocument = this.getInitiatedRemoteDocument();
+    if (remoteDocument) {
+      this.mode = "portal";
+      this.overlayElement = document.createElement("div");
+      this.overlayElement.addEventListener("click", (event) => {
+        event.stopImmediatePropagation();
+        event.preventDefault();
+        const remoteDocument2 = this.getInitiatedRemoteDocument();
+        if (remoteDocument2) {
+          remoteDocument2.dispatchEvent(
+            new CustomEvent(consumeEventEventName, {
+              bubbles: false,
+              detail: { element: event.target, originalEvent: event }
+            })
+          );
+        }
+      });
+      const parentElement = (_b = (_a = this.getScene()).getOverlayElement) == null ? void 0 : _b.call(_a);
+      if (parentElement) {
+        parentElement.appendChild(this.overlayElement);
+      } else {
+        console.warn(
+          "An m-overlay element was found but getOverlayElement was not provided by the scene"
+        );
+      }
+      for (const child of Array.from(this.childNodes)) {
+        this.overlayElement.appendChild(child);
+      }
+    } else {
+      this.mode = "direct";
+      this.overlayElement = this;
+    }
+    const graphicsAdapter = this.getScene().getGraphicsAdapter();
+    this.overlayGraphics = graphicsAdapter.getGraphicsAdapterFactory().MMLOverlayGraphicsInterface(this);
+    for (const name of _Overlay2.observedAttributes) {
+      const value = this.getAttribute(name);
+      if (value !== null) {
+        this.attributeChangedCallback(name, null, value);
+      }
+    }
+    this.updateOverlayElementPosition();
+  }
+  disconnectedCallback() {
+    var _a, _b;
+    (_a = this.overlayGraphics) == null ? void 0 : _a.dispose();
+    this.overlayGraphics = null;
+    (_b = this.overlayElement) == null ? void 0 : _b.remove();
+    super.disconnectedCallback();
+  }
+};
+_Overlay.tagName = "m-overlay";
+_Overlay.attributeHandler = new AttributeHandler({
+  href: (instance, newValue) => {
+    instance.props.href = newValue !== null ? newValue : null;
+  },
+  target: (instance, newValue) => {
+    instance.props.target = newValue !== null ? newValue : null;
+  },
+  anchor: (instance, newValue) => {
+    instance.props.anchor = parseEnumAttribute(
+      newValue,
+      OverlayAnchor,
+      "top-left"
+      /* top-left */
+    );
+    instance.updateOverlayElementPosition();
+  },
+  "offset-x": (instance, newValue) => {
+    instance.props.offsetX = parseFloatAttribute(newValue, 0);
+    instance.updateOverlayElementPosition();
+  },
+  "offset-y": (instance, newValue) => {
+    instance.props.offsetY = parseFloatAttribute(newValue, 0);
+    instance.updateOverlayElementPosition();
+  }
+});
+var Overlay = _Overlay;
 var defaultPlaneColor = { r: 1, g: 1, b: 1 };
 var defaultPlaneWidth = 1;
 var defaultPlaneHeight = 1;
@@ -6869,6 +7448,7 @@ var _Plane = class _Plane2 extends TransformableElement {
       ]
     });
     this.collideableHelper = new CollideableHelper(this);
+    this.clickableHelper = new ClickableHelper();
   }
   enable() {
     this.collideableHelper.enable();
@@ -6889,7 +7469,8 @@ var _Plane = class _Plane2 extends TransformableElement {
     return [
       ...TransformableElement.observedAttributes,
       ..._Plane2.attributeHandler.getAttributes(),
-      ...CollideableHelper.observedAttributes
+      ...CollideableHelper.observedAttributes,
+      ...ClickableHelper.observedAttributes
     ];
   }
   addSideEffectChild(child) {
@@ -6904,7 +7485,7 @@ var _Plane = class _Plane2 extends TransformableElement {
     this.collideableHelper.parentTransformed();
   }
   isClickable() {
-    return true;
+    return this.clickableHelper.isClickable();
   }
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.planeGraphics) {
@@ -6913,6 +7494,7 @@ var _Plane = class _Plane2 extends TransformableElement {
     super.attributeChangedCallback(name, oldValue, newValue);
     _Plane2.attributeHandler.handle(this, name, newValue);
     this.collideableHelper.handle(name, newValue);
+    this.clickableHelper.handle(name, newValue);
   }
   connectedCallback() {
     var _a;
@@ -7308,7 +7890,7 @@ var MMLDocumentTimeManager = class {
     }
   }
 };
-var RemoteDocument = class extends MElement {
+var RemoteDocument = class extends TransformableElement {
   constructor() {
     super();
     this.scene = null;
@@ -7364,11 +7946,7 @@ var RemoteDocument = class extends MElement {
     super.disconnectedCallback();
   }
   dispatchEvent(event) {
-    if (this.contains(event.detail.element)) {
-      return HTMLElement.prototype.dispatchEvent.call(this, event);
-    } else {
-      return false;
-    }
+    return HTMLElement.prototype.dispatchEvent.call(this, event);
   }
   init(mmlScene, documentAddress) {
     if (this.scene) {
@@ -7440,6 +8018,7 @@ var _Sphere = class _Sphere2 extends TransformableElement {
       ]
     });
     this.collideableHelper = new CollideableHelper(this);
+    this.clickableHelper = new ClickableHelper();
   }
   enable() {
     this.collideableHelper.enable();
@@ -7460,7 +8039,8 @@ var _Sphere = class _Sphere2 extends TransformableElement {
     return [
       ...TransformableElement.observedAttributes,
       ..._Sphere2.attributeHandler.getAttributes(),
-      ...CollideableHelper.observedAttributes
+      ...CollideableHelper.observedAttributes,
+      ...ClickableHelper.observedAttributes
     ];
   }
   addSideEffectChild(child) {
@@ -7475,7 +8055,7 @@ var _Sphere = class _Sphere2 extends TransformableElement {
     this.collideableHelper.parentTransformed();
   }
   isClickable() {
-    return true;
+    return this.clickableHelper.isClickable();
   }
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.sphereGraphics) {
@@ -7484,6 +8064,7 @@ var _Sphere = class _Sphere2 extends TransformableElement {
     super.attributeChangedCallback(name, oldValue, newValue);
     _Sphere2.attributeHandler.handle(this, name, newValue);
     this.collideableHelper.handle(name, newValue);
+    this.clickableHelper.handle(name, newValue);
   }
   connectedCallback() {
     super.connectedCallback();
@@ -7580,6 +8161,7 @@ var _Video = class _Video2 extends TransformableElement {
       ]
     });
     this.collideableHelper = new CollideableHelper(this);
+    this.clickableHelper = new ClickableHelper();
     this.props = {
       startTime: defaultVideoStartTime,
       pauseTime: defaultVideoPauseTime,
@@ -7597,7 +8179,8 @@ var _Video = class _Video2 extends TransformableElement {
     return [
       ...TransformableElement.observedAttributes,
       ..._Video2.attributeHandler.getAttributes(),
-      ...CollideableHelper.observedAttributes
+      ...CollideableHelper.observedAttributes,
+      ...ClickableHelper.observedAttributes
     ];
   }
   enable() {
@@ -7630,7 +8213,7 @@ var _Video = class _Video2 extends TransformableElement {
     this.collideableHelper.parentTransformed();
   }
   isClickable() {
-    return true;
+    return this.clickableHelper.isClickable();
   }
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.videoGraphics) {
@@ -7639,6 +8222,7 @@ var _Video = class _Video2 extends TransformableElement {
     super.attributeChangedCallback(name, oldValue, newValue);
     _Video2.attributeHandler.handle(this, name, newValue);
     this.collideableHelper.handle(name, newValue);
+    this.clickableHelper.handle(name, newValue);
   }
   documentTimeChanged() {
     var _a;
@@ -7749,6 +8333,7 @@ function registerCustomElementsToWindow(targetWindow) {
   targetWindow.customElements.define(Group.tagName, Group);
   targetWindow.customElements.define(Prompt.tagName, Prompt);
   targetWindow.customElements.define(Link.tagName, Link);
+  targetWindow.customElements.define(Overlay.tagName, Overlay);
   targetWindow.customElements.define(Sphere.tagName, Sphere);
   targetWindow.customElements.define(Image.tagName, Image);
   targetWindow.customElements.define(Video.tagName, Video);
@@ -8505,6 +9090,12 @@ var FullScreenMMLScene = class extends MMLScene {
     this.loadingProgressBar.dispose();
     this.createLoadingProgressBar();
   }
+  getOverlayElement() {
+    if (this.options.allowOverlay) {
+      return this.element;
+    }
+    return null;
+  }
   configureWindowStyling() {
     document.documentElement.style.width = "100%";
     document.documentElement.style.height = "100%";
@@ -8598,6 +9189,11 @@ var ModelGraphics = class {
   constructor(element, updateMeshCallback) {
   }
 };
+var OverlayGraphics = class {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  constructor(element) {
+  }
+};
 var PlaneGraphics = class {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   constructor(element) {
@@ -8672,78 +9268,6 @@ var IframeWrapper = class _IframeWrapper {
   }
   dispose() {
     this.iframe.remove();
-  }
-};
-var MMLNetworkSource = class _MMLNetworkSource {
-  constructor(options) {
-    this.options = options;
-    this.websocket = null;
-  }
-  static create(options) {
-    const mmlNetworkSource = new _MMLNetworkSource(options);
-    mmlNetworkSource.init();
-    return mmlNetworkSource;
-  }
-  init() {
-    let overriddenHandler = null;
-    const eventHandler = (element, event) => {
-      if (!overriddenHandler) {
-        throw new Error("overriddenHandler not set");
-      }
-      overriddenHandler(element, event);
-    };
-    const src = this.options.url;
-    this.remoteDocumentWrapper = new RemoteDocumentWrapper(
-      src,
-      this.options.windowTarget,
-      this.options.mmlScene,
-      eventHandler
-    );
-    this.options.targetForWrappers.append(this.remoteDocumentWrapper.remoteDocument);
-    let loadingProgressManager;
-    if (this.options.mmlScene.getLoadingProgressManager) {
-      loadingProgressManager = this.options.mmlScene.getLoadingProgressManager();
-    }
-    const isWebsocket = src.startsWith("ws://") || src.startsWith("wss://");
-    if (isWebsocket) {
-      const websocket = new NetworkedDOMWebsocket(
-        this.options.url,
-        NetworkedDOMWebsocket.createWebSocket,
-        this.remoteDocumentWrapper.remoteDocument,
-        (time) => {
-          this.remoteDocumentWrapper.setDocumentTime(time);
-        },
-        (status) => {
-          if (status === NetworkedDOMWebsocketStatus.Connected) {
-            loadingProgressManager == null ? void 0 : loadingProgressManager.setInitialLoad(true);
-          }
-          this.options.statusUpdated(status);
-        },
-        {
-          tagPrefix: "m-"
-        }
-      );
-      this.websocket = websocket;
-      overriddenHandler = (element, event) => {
-        websocket.handleEvent(element, event);
-      };
-    } else {
-      fetchRemoteStaticMML(this.options.url).then((remoteDocumentBody) => {
-        this.remoteDocumentWrapper.remoteDocument.append(remoteDocumentBody);
-        loadingProgressManager == null ? void 0 : loadingProgressManager.setInitialLoad(true);
-      }).catch((err) => {
-        loadingProgressManager == null ? void 0 : loadingProgressManager.setInitialLoad(err);
-      });
-      overriddenHandler = () => {
-      };
-    }
-  }
-  dispose() {
-    if (this.websocket) {
-      this.websocket.stop();
-      this.websocket = null;
-    }
-    this.remoteDocumentWrapper.remoteDocument.remove();
   }
 };
 var StatusUI = class {
@@ -9318,6 +9842,17 @@ var TagDebugAdapterGraphicsInterface = {
       parentModelUpdated: () => {
       }
     }
+  ),
+  MMLOverlayGraphicsInterface: TagDebugAdapterElement(
+    {
+      setAnchor: "anchor",
+      setOffsetX: "offset-x",
+      setOffsetY: "offset-y"
+    },
+    {
+      dispose: () => {
+      }
+    }
   )
 };
 var StandaloneTagDebugAdapter = class _StandaloneTagDebugAdapter {
@@ -9879,6 +10414,7 @@ export {
   Audio,
   getRelativePositionAndRotationRelativeToObject,
   LoadingInstanceManager,
+  MMLNetworkSource,
   Image,
   LightTypes,
   registerCustomElementsToWindow,
@@ -9898,6 +10434,7 @@ export {
   LinkGraphics,
   MElementGraphics,
   ModelGraphics,
+  OverlayGraphics,
   PlaneGraphics,
   PositionProbeGraphics,
   PromptGraphics,
@@ -9906,7 +10443,6 @@ export {
   TransformableGraphics,
   VideoGraphics,
   IframeWrapper,
-  MMLNetworkSource,
   StatusUI,
   StandaloneTagDebugAdapter,
   calculateContentSize,
@@ -9933,4 +10469,4 @@ export {
   allFields,
   setDebugGlobals
 };
-//# sourceMappingURL=chunk-EPLE3BMH.js.map
+//# sourceMappingURL=chunk-YL4BJBHM.js.map
